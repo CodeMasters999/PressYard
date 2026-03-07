@@ -156,6 +156,7 @@ Useful commands:
 `wp-init` handles:
 
 - first-time `wp core install`
+- creation of writable runtime directories used by wp-admin updates
 - deletion of default plugins
 - ZIP package install
 - fallback activation of `local-dev-theme`

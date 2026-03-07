@@ -5,9 +5,25 @@ WP_PATH="/var/www/html"
 WP_STATE_DIR="${WP_STATE_DIR:-/var/www/state}"
 WP_PACKAGE_DIRS="${WP_PACKAGE_DIRS:-/workspace/packages /workspace}"
 ZIP_FINGERPRINT_FILE="${WP_STATE_DIR}/zip-packages.fingerprint"
+WP_RUNTIME_UID="${WP_RUNTIME_UID:-33}"
+WP_RUNTIME_GID="${WP_RUNTIME_GID:-33}"
 
 wp_cmd() {
   wp --allow-root --path="$WP_PATH" "$@"
+}
+
+ensure_runtime_dirs() {
+  local runtime_dir
+
+  for runtime_dir in \
+    "$WP_PATH/wp-content/upgrade" \
+    "$WP_PATH/wp-content/languages" \
+    "$WP_PATH/wp-content/cache"
+  do
+    mkdir -p "$runtime_dir"
+    chown "$WP_RUNTIME_UID:$WP_RUNTIME_GID" "$runtime_dir" 2>/dev/null || true
+    chmod 775 "$runtime_dir" 2>/dev/null || true
+  done
 }
 
 collect_zip_files() {
@@ -63,6 +79,7 @@ until wp_cmd db check >/dev/null 2>&1; do
 done
 
 mkdir -p "$WP_STATE_DIR"
+ensure_runtime_dirs
 
 if ! wp_cmd core is-installed >/dev/null 2>&1; then
   echo "Installing WordPress..."
@@ -130,5 +147,7 @@ done < <(wp_cmd theme list --field=name 2>/dev/null || true)
 if [ "$zip_count" -eq 0 ]; then
   echo "No ZIP packages found in configured package directories."
 fi
+
+ensure_runtime_dirs
 
 echo "WordPress initialization complete."

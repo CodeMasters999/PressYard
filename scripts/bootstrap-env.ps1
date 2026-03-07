@@ -96,6 +96,17 @@ function Test-ExampleProxyConfigDir([string]$Path) {
   )
 }
 
+function Test-DefaultWordPressImageValue([string]$Value) {
+  if ([string]::IsNullOrWhiteSpace($Value)) {
+    return $true
+  }
+
+  return $Value -in @(
+    "wordpress:6.8.2-php8.2-apache",
+    "wordpress:php8.2-apache"
+  )
+}
+
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $envPath = Join-Path $root ".env"
 $examplePath = Join-Path $root ".env.example"
@@ -323,8 +334,8 @@ else {
   }
 }
 
-if (-not $settings.ContainsKey("WORDPRESS_IMAGE") -or [string]::IsNullOrWhiteSpace($settings["WORDPRESS_IMAGE"])) {
-  $settings["WORDPRESS_IMAGE"] = "wordpress:6.8.2-php8.2-apache"
+if (-not $settings.ContainsKey("WORDPRESS_IMAGE") -or (Test-DefaultWordPressImageValue $settings["WORDPRESS_IMAGE"])) {
+  $settings["WORDPRESS_IMAGE"] = "wordpress:php8.2-apache"
 }
 
 if (-not $settings.ContainsKey("WORDPRESS_CLI_IMAGE") -or [string]::IsNullOrWhiteSpace($settings["WORDPRESS_CLI_IMAGE"])) {

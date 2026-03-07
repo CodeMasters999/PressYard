@@ -7,6 +7,7 @@ Copy the folder. Rename it. Run one command. Get:
 - a readable local hostname based on the folder name
 - isolated containers, volumes, and ports
 - WordPress installed automatically
+- latest WordPress core on the configured PHP line
 - optional package ZIP installs from `packages/`
 - a shared proxy for clean per-project URLs across many projects
 
@@ -101,6 +102,8 @@ Docker volumes:
 - WordPress core/runtime
 - MariaDB data
 - init/package state
+
+PressYard also keeps WordPress runtime update directories writable so core, plugin, and theme updates from wp-admin do not fail on container permissions.
 
 That balance is the main reason this setup stays usable when several projects are running.
 
