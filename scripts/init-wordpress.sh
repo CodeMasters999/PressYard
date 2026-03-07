@@ -26,6 +26,20 @@ ensure_runtime_dirs() {
   done
 }
 
+normalize_content_permissions() {
+  local content_dir
+
+  for content_dir in \
+    "$WP_PATH/wp-content/plugins" \
+    "$WP_PATH/wp-content/mu-plugins" \
+    "$WP_PATH/wp-content/themes" \
+    "$WP_PATH/wp-content/uploads"
+  do
+    [ -e "$content_dir" ] || continue
+    chown -R "$WP_RUNTIME_UID:$WP_RUNTIME_GID" "$content_dir" 2>/dev/null || true
+  done
+}
+
 collect_zip_files() {
   local dir
   local zip
@@ -80,6 +94,7 @@ done
 
 mkdir -p "$WP_STATE_DIR"
 ensure_runtime_dirs
+normalize_content_permissions
 
 if ! wp_cmd core is-installed >/dev/null 2>&1; then
   echo "Installing WordPress..."
@@ -155,5 +170,6 @@ if [ "$zip_count" -eq 0 ]; then
 fi
 
 ensure_runtime_dirs
+normalize_content_permissions
 
 echo "WordPress initialization complete."
