@@ -51,8 +51,8 @@ function Get-DefaultProxyConfigDir {
     return ($xdgState.TrimEnd("/") + "/pressyard/proxy/dynamic")
   }
 
-  $home = if (-not [string]::IsNullOrWhiteSpace($env:HOME)) { $env:HOME } else { "~" }
-  return ($home.TrimEnd("/") + "/.local/state/pressyard/proxy/dynamic")
+  $homeDir = if (-not [string]::IsNullOrWhiteSpace($env:HOME)) { $env:HOME } else { "~" }
+  return ($homeDir.TrimEnd("/") + "/.local/state/pressyard/proxy/dynamic")
 }
 
 function Get-OldDefaultProxyConfigDir {
@@ -71,8 +71,8 @@ function Get-OldDefaultProxyConfigDir {
     return ($xdgState.TrimEnd("/") + "/wpdraft/proxy/dynamic")
   }
 
-  $home = if (-not [string]::IsNullOrWhiteSpace($env:HOME)) { $env:HOME } else { "~" }
-  return ($home.TrimEnd("/") + "/.local/state/wpdraft/proxy/dynamic")
+  $homeDir = if (-not [string]::IsNullOrWhiteSpace($env:HOME)) { $env:HOME } else { "~" }
+  return ($homeDir.TrimEnd("/") + "/.local/state/wpdraft/proxy/dynamic")
 }
 
 function Test-SafePathExists([string]$Path) {
@@ -150,12 +150,22 @@ function Is-True([string]$value) {
   return @("1", "true", "yes", "on") -contains $value.Trim().ToLowerInvariant()
 }
 
+function Test-DockerCliAvailable {
+  return $null -ne (Get-Command docker -ErrorAction SilentlyContinue)
+}
+
+$script:DockerCliAvailable = Test-DockerCliAvailable
+
 function Test-ComposeProjectNameReserved([string]$projectName, [string]$currentProjectName) {
   if ([string]::IsNullOrWhiteSpace($projectName)) {
     return $true
   }
 
   if ($projectName -eq $currentProjectName) {
+    return $false
+  }
+
+  if (-not $script:DockerCliAvailable) {
     return $false
   }
 
@@ -215,6 +225,10 @@ function Get-AvailableHostName([string]$baseName, [string]$hashHex, [string]$con
 
 function Test-PortBoundByProject([int]$port, [string]$projectName) {
   if ([string]::IsNullOrWhiteSpace($projectName)) {
+    return $false
+  }
+
+  if (-not $script:DockerCliAvailable) {
     return $false
   }
 
