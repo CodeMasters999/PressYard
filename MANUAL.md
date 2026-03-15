@@ -13,7 +13,8 @@ The important architectural choices are:
 
 - WordPress core lives in a named volume, not in a host bind mount
 - MariaDB lives in a named volume with lower-memory local-dev tuning
-- only `wp-content/plugins`, `wp-content/mu-plugins`, `wp-content/themes`, and `wp-content/uploads` are bind-mounted
+- the default `fast` mode keeps `wp-content` in volumes and seeds repo-owned code into the runtime on boot
+- the optional `dev` mode bind-mounts only `wp-content/plugins`, `wp-content/mu-plugins`, and `wp-content/themes`
 - the shared proxy is file-driven and routes to `host.docker.internal:<published-port>` instead of discovering containers through the Docker socket
 
 ## 2. Files and Services
@@ -21,6 +22,7 @@ The important architectural choices are:
 Main services:
 
 - `db`
+- `content-sync`
 - `wordpress`
 - `wp-init`
 - `wp-cli` via profile `ops`
@@ -73,7 +75,7 @@ That fallback is for the internal Docker namespace. Old volumes by themselves no
 
 ## 4. Start Modes
 
-### Default one-command boot
+### Default fast mode
 
 ```powershell
 .\doctor.ps1
@@ -86,6 +88,20 @@ Default behavior:
 - shared proxy enabled
 - clean `.localhost` routing required
 - direct WordPress port still available
+- volume-backed `wp-content`
+- best throughput when you do not need live host edits
+
+### Editable dev mode
+
+```powershell
+.\up.ps1 -WithMounts
+```
+
+Behavior:
+
+- bind-mounts theme/plugin code from the repo
+- keeps `uploads` in a volume
+- should be paired with WSL2 ext4 on Windows for acceptable performance
 
 ### Direct-only
 
@@ -182,6 +198,7 @@ Useful commands:
 
 `wp-init` handles:
 
+- seeding repo-owned `wp-content` into the runtime volume in fast mode
 - first-time `wp core install`
 - creation of writable runtime directories used by wp-admin updates
 - deletion of default plugins
@@ -261,7 +278,8 @@ To stop the shared proxy too:
 For highest practical throughput when running many stacks:
 
 - keep the repo in WSL2 storage when possible
-- avoid bind-mounting the entire WordPress root
+- prefer the default fast mode unless you need live code edits
+- use `.\up.ps1 -WithMounts` only for active theme/plugin development
 - keep bulky one-off ZIPs in `packages/` instead of scattering them through project roots
 - use `down.ps1` for persistent stacks and reserve `-Volumes` for true throwaways
 - export DB snapshots before risky plugin/theme work
@@ -299,7 +317,7 @@ cd D:\docker\scratch\plugin-test
 ### Persistent client work with snapshot
 
 ```powershell
-.\up.ps1
+.\up.ps1 -WithMounts
 .\export-db.ps1 .\backups\before-redesign.sql
 # work
 .\down.ps1
@@ -310,6 +328,7 @@ cd D:\docker\scratch\plugin-test
 - The proxy defaults to `80`/`8089` so the primary site URL can be `http://name.localhost` with no extra port.
 - `WP_URL` is the proxy URL by design. If the proxy is not running, use the direct port.
 - `.localhost` resolution depends on the script being able to update your hosts file. For the cleanest UX, run `.\up.ps1` in an elevated terminal. If you do not want that, use `.\up.ps1 -WithProxy:$false` and work on the direct port.
+- `.\up.ps1` defaults to the fast non-editable mode. Use `.\up.ps1 -WithMounts` when live editing is more important than raw filesystem throughput.
 - Adminer remains optional and older than the WordPress container runtime; it is isolated behind its own profile and direct port.
 - Renaming an already-used folder creates a new compose namespace and new volumes. That is correct for copied environments, but if you intend an in-place rename without changing persistence, keep `COMPOSE_PROJECT_NAME` fixed in `.env`.
 - The repo is publish-clean only if personal ZIPs remain in ignored paths like `packages/`; do not recommit commercial bundles into the root.

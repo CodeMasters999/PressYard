@@ -96,15 +96,38 @@ function Test-ExampleProxyConfigDir([string]$Path) {
   )
 }
 
-function Test-DefaultWordPressImageValue([string]$Value) {
-  if ([string]::IsNullOrWhiteSpace($Value)) {
-    return $true
+function Get-DirectAccessHost([string]$BindAddress) {
+  if ([string]::IsNullOrWhiteSpace($BindAddress)) {
+    return "localhost"
   }
 
-  return $Value -in @(
-    "wordpress:6.8.2-php8.2-apache",
-    "wordpress:php8.2-apache"
-  )
+  if ($BindAddress -in @("127.0.0.1", "0.0.0.0", "::", "[::]")) {
+    return "localhost"
+  }
+
+  return $BindAddress
+}
+
+function Get-DefaultRuntimeId([string]$Flag) {
+  if (Test-IsWindows) {
+    return "33"
+  }
+
+  try {
+    $command = Get-Command id -ErrorAction SilentlyContinue
+    if ($null -eq $command) {
+      return "33"
+    }
+
+    $value = (& $command.Source $Flag).Trim()
+    if ($value -match '^\d+$') {
+      return $value
+    }
+  }
+  catch {
+  }
+
+  return "33"
 }
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -124,6 +147,8 @@ foreach ($line in $lines) {
   $parts = $line.Split("=", 2)
   $settings[$parts[0].Trim()] = $parts[1]
 }
+
+[void]$settings.Remove("PRESSYARD_MANAGE_BIND_MOUNT_OWNERSHIP")
 
 function Get-HashHex([string]$value) {
   $sha = [System.Security.Cryptography.SHA256]::Create()
@@ -334,7 +359,7 @@ else {
   }
 }
 
-if (-not $settings.ContainsKey("WORDPRESS_IMAGE") -or (Test-DefaultWordPressImageValue $settings["WORDPRESS_IMAGE"])) {
+if (-not $settings.ContainsKey("WORDPRESS_IMAGE") -or [string]::IsNullOrWhiteSpace($settings["WORDPRESS_IMAGE"])) {
   $settings["WORDPRESS_IMAGE"] = "wordpress:php8.2-apache"
 }
 
@@ -364,6 +389,23 @@ if (-not $settings.ContainsKey("ENABLE_MAILPIT") -or [string]::IsNullOrWhiteSpac
 
 if (-not $settings.ContainsKey("ENABLE_XDEBUG") -or [string]::IsNullOrWhiteSpace($settings["ENABLE_XDEBUG"])) {
   $settings["ENABLE_XDEBUG"] = "false"
+}
+
+if (-not $settings.ContainsKey("AUTO_RUNTIME_UID_GID") -or [string]::IsNullOrWhiteSpace($settings["AUTO_RUNTIME_UID_GID"])) {
+  $settings["AUTO_RUNTIME_UID_GID"] = "true"
+}
+
+$autoRuntimeIds = Is-True $settings["AUTO_RUNTIME_UID_GID"]
+if ($autoRuntimeIds -or -not $settings.ContainsKey("PRESSYARD_RUNTIME_UID") -or [string]::IsNullOrWhiteSpace($settings["PRESSYARD_RUNTIME_UID"])) {
+  $settings["PRESSYARD_RUNTIME_UID"] = Get-DefaultRuntimeId "-u"
+}
+
+if ($autoRuntimeIds -or -not $settings.ContainsKey("PRESSYARD_RUNTIME_GID") -or [string]::IsNullOrWhiteSpace($settings["PRESSYARD_RUNTIME_GID"])) {
+  $settings["PRESSYARD_RUNTIME_GID"] = Get-DefaultRuntimeId "-g"
+}
+
+if (-not $settings.ContainsKey("PRESSYARD_FILE_UMASK") -or [string]::IsNullOrWhiteSpace($settings["PRESSYARD_FILE_UMASK"])) {
+  $settings["PRESSYARD_FILE_UMASK"] = "0002"
 }
 
 if (-not $settings.ContainsKey("XDEBUG_MODE") -or [string]::IsNullOrWhiteSpace($settings["XDEBUG_MODE"])) {
@@ -472,6 +514,8 @@ if ($autoMailpitPort -or -not $settings.ContainsKey("MAILPIT_PUBLISHED_PORT") -o
 $proxyPort = $settings["PROXY_HTTP_PORT"]
 $proxyPortSuffix = if ($proxyPort -eq "80") { "" } else { ":" + $proxyPort }
 $settings["WP_URL"] = "http://$($settings["WP_HOSTNAME"])$proxyPortSuffix"
+$directHost = Get-DirectAccessHost $settings["WORDPRESS_BIND_ADDRESS"]
+$settings["WP_DIRECT_URL"] = "http://{0}:{1}" -f $directHost, $settings["WORDPRESS_PUBLISHED_PORT"]
 $settings["AUTO_NAMESPACE"] = if ($autoNamespace) { "true" } else { "false" }
 $settings["AUTO_HOSTNAME"] = if ($autoHostname) { "true" } else { "false" }
 $settings["AUTO_PORT"] = if ($autoPort) { "true" } else { "false" }
@@ -508,11 +552,16 @@ $orderedKeys = @(
   "WORDPRESS_DB_PASSWORD",
   "WORDPRESS_TABLE_PREFIX",
   "WP_URL",
+  "WP_DIRECT_URL",
   "WP_SITE_TITLE",
   "WP_ADMIN_USER",
   "WP_ADMIN_PASSWORD",
   "WP_ADMIN_EMAIL",
   "WP_DEBUG",
+  "AUTO_RUNTIME_UID_GID",
+  "PRESSYARD_RUNTIME_UID",
+  "PRESSYARD_RUNTIME_GID",
+  "PRESSYARD_FILE_UMASK",
   "ENABLE_MAILPIT",
   "ENABLE_XDEBUG",
   "XDEBUG_MODE",
@@ -529,7 +578,7 @@ foreach ($k in $orderedKeys) {
   }
 }
 foreach ($k in $settings.Keys | Sort-Object) {
-  if ($orderedKeys -notcontains $k -and $k -notin @("FALLBACK_HOST_SUFFIX")) {
+  if ($orderedKeys -notcontains $k -and $k -notin @("FALLBACK_HOST_SUFFIX", "PRESSYARD_MANAGE_BIND_MOUNT_OWNERSHIP")) {
     $out.Add("$k=$($settings[$k])")
   }
 }

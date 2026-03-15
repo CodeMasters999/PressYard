@@ -11,6 +11,25 @@ Copy the folder. Rename it. Run one command. Get:
 - optional package ZIP installs from `packages/`
 - a shared proxy for clean per-project URLs across many projects
 
+## Start Here
+
+Choose the mode first:
+
+- `.\up.ps1`
+  Fast mode. Best performance. `wp-content` stays volume-backed. Use this for smoke tests, imported client copies, QA, demos, and general non-editable runs.
+- `.\up.ps1 -WithMounts`
+  Dev mode. Editable bind mounts for `plugins`, `mu-plugins`, and `themes`. Use this only when you need live file edits from the host.
+
+If you are on Windows and want editable dev mode without a performance hit, keep the repo in WSL2 ext4 storage and open it through Remote WSL.
+
+## What You Get
+
+- one command bootstraps WordPress, DB, ports, hostname, and optional proxy
+- copied folders become isolated stacks automatically
+- fast mode avoids bind mounts in the web request path
+- dev mode is explicit instead of being silently slower all the time
+- package ZIPs can be dropped into `packages/` and installed on boot
+
 ## Why This Exists
 
 Most WordPress Docker setups are good at starting one site once.
@@ -38,6 +57,18 @@ Open PowerShell as Administrator, then from the repo root run:
 .\up.ps1
 ```
 
+That default path is `fast` mode:
+
+- volume-backed `wp-content`
+- no editable bind mounts in the web request path
+- best local performance for smoke tests, snapshots, and disposable environments
+
+Use `dev` mode only when you need live file editing from the host:
+
+```powershell
+.\up.ps1 -WithMounts
+```
+
 Or use one of the optional dev profiles:
 
 ```powershell
@@ -45,6 +76,7 @@ Or use one of the optional dev profiles:
 .\up.ps1 -WithMail
 .\up.ps1 -WithXdebug
 .\up.ps1 -WithTools -WithMail -WithXdebug
+.\up.ps1 -WithMounts -WithTools -WithMail -WithXdebug
 ```
 
 That will:
@@ -58,6 +90,7 @@ That will:
 7. print the full installation path and live URLs
 
 If you skip the elevated terminal, use `.\up.ps1 -WithProxy:$false` and work on the printed direct port instead.
+In that mode, `.\open.ps1` also falls back to the direct URL automatically.
 
 ## Mental Model
 
@@ -79,6 +112,7 @@ That fallback applies to the internal Docker project namespace only when a live 
 
 ```powershell
 .\up.ps1
+.\up.ps1 -WithMounts
 .\up.ps1 -WithTools
 .\up.ps1 -WithMail
 .\up.ps1 -WithXdebug
@@ -95,26 +129,44 @@ That fallback applies to the internal Docker project namespace only when a live 
 .\import-db.ps1 .\backups\snapshot.sql
 ```
 
-## What Gets Mounted
+## Mount Modes
 
-For performance, PressYard does not bind-mount the entire WordPress root.
+PressYard ships with two explicit filesystem modes.
 
-Bind-mounted:
+Default `fast` mode:
 
-- `wp-content/plugins`
-- `wp-content/mu-plugins`
-- `wp-content/themes`
-- `wp-content/uploads`
+- `wp-content` lives in Docker volumes
+- repo-owned `wp-content/plugins`, `mu-plugins`, and `themes` are seeded into the runtime volume on boot
+- `uploads` stays volume-backed
+- best performance on Windows and Docker Desktop
 
-Docker volumes:
+Optional `dev` mode with `.\up.ps1 -WithMounts`:
+
+- bind-mounts `wp-content/plugins`
+- bind-mounts `wp-content/mu-plugins`
+- bind-mounts `wp-content/themes`
+- keeps `uploads` volume-backed by default
+
+Docker volumes are always used for:
 
 - WordPress core/runtime
 - MariaDB data
+- uploads
 - init/package state
 
 PressYard also keeps WordPress runtime update directories writable so core, plugin, and theme updates from wp-admin do not fail on container permissions.
 
-That balance is the main reason this setup stays usable when several projects are running.
+On Linux and macOS, PressYard maps the web runtime to the current host UID/GID by default.
+That keeps wp-admin edits, plugin/theme updates, uploads, and generated assets writable without leaving files owned by `root` or `www-data`.
+
+Related knobs in `.env`:
+
+- `AUTO_RUNTIME_UID_GID`
+- `PRESSYARD_RUNTIME_UID`
+- `PRESSYARD_RUNTIME_GID`
+- `PRESSYARD_FILE_UMASK`
+
+That split keeps the default path fast while still allowing a deliberate editable mode when the task needs it.
 
 ## Package ZIPs
 
@@ -138,6 +190,7 @@ Optional profiles are intentionally off by default so the fastest path stays fas
 - `-WithTools` starts Adminer
 - `-WithMail` starts Mailpit and routes `wp_mail()` into the local inbox automatically
 - `-WithXdebug` swaps the WordPress web container to the Xdebug-enabled image
+- `-WithMounts` enables editable bind mounts for theme/plugin development
 
 You can also persist them in `.env`:
 
@@ -203,6 +256,8 @@ Also supported in principle:
 
 The repo intentionally uses PowerShell as the automation layer across platforms instead of maintaining parallel shell implementations.
 
+For the best editable dev throughput on Windows, keep the repo in WSL2 ext4 storage and open it through Remote WSL.
+
 ## Mailpit And Xdebug
 
 Mailpit:
@@ -233,6 +288,7 @@ This repo is set up to be publishable:
 ## Files That Matter
 
 - [docker-compose.yml](./docker-compose.yml)
+- [docker-compose.mounts.yml](./docker-compose.mounts.yml)
 - [docker-compose.proxy.yml](./docker-compose.proxy.yml)
 - [up.ps1](./up.ps1)
 - [doctor.ps1](./doctor.ps1)

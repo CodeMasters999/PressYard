@@ -1,4 +1,5 @@
 param(
+  [switch]$WithMounts,
   [Parameter(ValueFromRemainingArguments = $true)]
   [string[]]$WpArgs
 )
@@ -6,4 +7,4 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-& (Join-Path $PSScriptRoot "scripts\\wp.ps1") @WpArgs
+& (Join-Path $PSScriptRoot "scripts\\wp.ps1") -WithMounts:$WithMounts @WpArgs

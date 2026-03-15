@@ -3,7 +3,8 @@ param(
   [switch]$WithTools,
   [switch]$WithProxy,
   [switch]$WithMail,
-  [switch]$WithXdebug
+  [switch]$WithXdebug,
+  [switch]$WithMounts
 )
 
 Set-StrictMode -Version Latest

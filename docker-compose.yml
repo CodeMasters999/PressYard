@@ -26,12 +26,18 @@ services:
       start_period: 20s
 
   wordpress:
-    image: ${WORDPRESS_IMAGE:-wordpress:php8.2-apache}
+    build:
+      context: .
+      dockerfile: docker/wordpress/Dockerfile
+      args:
+        WORDPRESS_BASE_IMAGE: ${WORDPRESS_IMAGE:-wordpress:php8.2-apache}
     restart: unless-stopped
     init: true
     depends_on:
       db:
         condition: service_healthy
+      content-sync:
+        condition: service_completed_successfully
     ports:
       - "${WORDPRESS_BIND_ADDRESS:-127.0.0.1}:${WORDPRESS_PUBLISHED_PORT:-8080}:80"
     environment:
@@ -46,6 +52,9 @@ services:
       PRESSYARD_MAILPIT_PORT: 1025
       PRESSYARD_MAILPIT_FROM_EMAIL: ${WP_ADMIN_EMAIL:-admin@example.com}
       PRESSYARD_MAILPIT_FROM_NAME: ${WP_SITE_TITLE:-Local WordPress}
+      PRESSYARD_RUNTIME_UID: ${PRESSYARD_RUNTIME_UID:-33}
+      PRESSYARD_RUNTIME_GID: ${PRESSYARD_RUNTIME_GID:-33}
+      PRESSYARD_FILE_UMASK: ${PRESSYARD_FILE_UMASK:-0002}
       WORDPRESS_CONFIG_EXTRA: |
         $$forwarded_host = $$_SERVER['HTTP_X_FORWARDED_HOST'] ?? '';
         $$request_host = $$_SERVER['HTTP_HOST'] ?? '${WP_HOSTNAME:-localhost}';
@@ -63,10 +72,7 @@ services:
         define('DISALLOW_FILE_EDIT', false);
     volumes:
       - wp_data:/var/www/html
-      - ./wp-content/plugins:/var/www/html/wp-content/plugins
-      - ./wp-content/mu-plugins:/var/www/html/wp-content/mu-plugins
-      - ./wp-content/themes:/var/www/html/wp-content/themes
-      - ./wp-content/uploads:/var/www/html/wp-content/uploads
+      - uploads_data:/var/www/html/wp-content/uploads
       - ./php/conf.d/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
     healthcheck:
       test: ["CMD", "php", "-r", "exit((int)!@fsockopen('127.0.0.1', 80));"]
@@ -75,12 +81,29 @@ services:
       retries: 12
       start_period: 30s
 
+  content-sync:
+    image: ${WORDPRESS_CLI_IMAGE:-wordpress:cli-php8.2}
+    restart: "no"
+    init: true
+    user: "0:0"
+    environment:
+      WP_PATH: /var/www/html
+      WP_SOURCE_ROOT: /workspace
+    volumes:
+      - wp_data:/var/www/html
+      - uploads_data:/var/www/html/wp-content/uploads
+      - ./:/workspace:ro
+      - ./scripts/sync-content.sh:/usr/local/bin/sync-content.sh:ro
+    entrypoint: ["bash", "/usr/local/bin/sync-content.sh"]
+
   wp-init:
     image: ${WORDPRESS_CLI_IMAGE:-wordpress:cli-php8.2}
     restart: "no"
     init: true
     user: "0:0"
     depends_on:
+      content-sync:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
       wordpress:
@@ -103,13 +126,12 @@ services:
       PRESSYARD_MAILPIT_PORT: 1025
       PRESSYARD_MAILPIT_FROM_EMAIL: ${WP_ADMIN_EMAIL:-admin@example.com}
       PRESSYARD_MAILPIT_FROM_NAME: ${WP_SITE_TITLE:-Local WordPress}
+      PRESSYARD_RUNTIME_UID: ${PRESSYARD_RUNTIME_UID:-33}
+      PRESSYARD_RUNTIME_GID: ${PRESSYARD_RUNTIME_GID:-33}
     volumes:
       - wp_data:/var/www/html
       - wp_state:/var/www/state
-      - ./wp-content/plugins:/var/www/html/wp-content/plugins
-      - ./wp-content/mu-plugins:/var/www/html/wp-content/mu-plugins
-      - ./wp-content/themes:/var/www/html/wp-content/themes
-      - ./wp-content/uploads:/var/www/html/wp-content/uploads
+      - uploads_data:/var/www/html/wp-content/uploads
       - ./:/workspace:ro
       - ./scripts/init-wordpress.sh:/usr/local/bin/init-wordpress.sh:ro
     entrypoint: ["bash", "/usr/local/bin/init-wordpress.sh"]
@@ -122,6 +144,8 @@ services:
     profiles:
       - ops
     depends_on:
+      content-sync:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
       wordpress:
@@ -136,13 +160,12 @@ services:
       PRESSYARD_MAILPIT_PORT: 1025
       PRESSYARD_MAILPIT_FROM_EMAIL: ${WP_ADMIN_EMAIL:-admin@example.com}
       PRESSYARD_MAILPIT_FROM_NAME: ${WP_SITE_TITLE:-Local WordPress}
+      PRESSYARD_RUNTIME_UID: ${PRESSYARD_RUNTIME_UID:-33}
+      PRESSYARD_RUNTIME_GID: ${PRESSYARD_RUNTIME_GID:-33}
     volumes:
       - wp_data:/var/www/html
       - wp_state:/var/www/state
-      - ./wp-content/plugins:/var/www/html/wp-content/plugins
-      - ./wp-content/mu-plugins:/var/www/html/wp-content/mu-plugins
-      - ./wp-content/themes:/var/www/html/wp-content/themes
-      - ./wp-content/uploads:/var/www/html/wp-content/uploads
+      - uploads_data:/var/www/html/wp-content/uploads
       - ./:/workspace:ro
     entrypoint: ["wp", "--allow-root", "--path=/var/www/html"]
 
@@ -173,3 +196,4 @@ volumes:
   db_data:
   wp_data:
   wp_state:
+  uploads_data:

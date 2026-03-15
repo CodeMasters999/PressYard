@@ -3,7 +3,8 @@ services:
     build:
       context: .
       dockerfile: docker/wordpress-xdebug/Dockerfile
-    image: pressyard-wordpress-xdebug:php8.2
+      args:
+        WORDPRESS_BASE_IMAGE: ${WORDPRESS_IMAGE:-wordpress:php8.2-apache}
     extra_hosts:
       - host.docker.internal:host-gateway
     environment:

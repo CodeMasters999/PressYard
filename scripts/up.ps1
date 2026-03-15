@@ -3,7 +3,8 @@ param(
   [switch]$WithTools,
   [switch]$WithProxy,
   [switch]$WithMail,
-  [switch]$WithXdebug
+  [switch]$WithXdebug,
+  [switch]$WithMounts
 )
 
 Set-StrictMode -Version Latest
@@ -105,6 +106,9 @@ if ($WithProxy) {
 }
 
 $composeFileArgs = @("-f", "docker-compose.yml")
+if ($WithMounts) {
+  $composeFileArgs += @("-f", "docker-compose.mounts.yml")
+}
 if ($WithXdebug) {
   $composeFileArgs += @("-f", "docker-compose.xdebug.yml")
 }
@@ -162,6 +166,7 @@ try {
 
     $hostMode = if ($WithProxy) { "localhost" } else { "direct-only" }
     Write-Host ("Host Mode: {0}" -f $hostMode)
+    Write-Host ("Mount Mode: {0}" -f ($(if ($WithMounts) { "dev (bind mounts enabled)" } else { "fast (volume-backed wp-content)" })))
     Write-Host ("Direct URL: http://localhost:{0}" -f $wpPort)
     Write-Host ("Xdebug: {0}" -f ($(if ($WithXdebug) { "enabled" } else { "disabled" })))
 

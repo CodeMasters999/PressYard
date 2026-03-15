@@ -1,6 +1,7 @@
 param(
   [switch]$WithTools,
-  [switch]$WithProxy
+  [switch]$WithProxy,
+  [switch]$WithMounts
 )
 
 Set-StrictMode -Version Latest

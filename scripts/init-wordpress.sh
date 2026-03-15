@@ -5,8 +5,11 @@ WP_PATH="/var/www/html"
 WP_STATE_DIR="${WP_STATE_DIR:-/var/www/state}"
 WP_PACKAGE_DIRS="${WP_PACKAGE_DIRS:-/workspace/packages /workspace}"
 ZIP_FINGERPRINT_FILE="${WP_STATE_DIR}/zip-packages.fingerprint"
-WP_RUNTIME_UID="${WP_RUNTIME_UID:-33}"
-WP_RUNTIME_GID="${WP_RUNTIME_GID:-33}"
+PRESSYARD_RUNTIME_UID="${PRESSYARD_RUNTIME_UID:-${WP_RUNTIME_UID:-33}}"
+PRESSYARD_RUNTIME_GID="${PRESSYARD_RUNTIME_GID:-${WP_RUNTIME_GID:-33}}"
+WP_RUNTIME_UID="$PRESSYARD_RUNTIME_UID"
+WP_RUNTIME_GID="$PRESSYARD_RUNTIME_GID"
+FIX_PERMISSIONS_SCRIPT="${FIX_PERMISSIONS_SCRIPT:-/workspace/scripts/fix-content-permissions.sh}"
 
 wp_cmd() {
   wp --allow-root --path="$WP_PATH" "$@"
@@ -27,17 +30,12 @@ ensure_runtime_dirs() {
 }
 
 normalize_content_permissions() {
-  local content_dir
-
-  for content_dir in \
-    "$WP_PATH/wp-content/plugins" \
-    "$WP_PATH/wp-content/mu-plugins" \
-    "$WP_PATH/wp-content/themes" \
-    "$WP_PATH/wp-content/uploads"
-  do
-    [ -e "$content_dir" ] || continue
-    chown -R "$WP_RUNTIME_UID:$WP_RUNTIME_GID" "$content_dir" 2>/dev/null || true
-  done
+  if [ -f "$FIX_PERMISSIONS_SCRIPT" ]; then
+    WP_PATH="$WP_PATH" \
+      PRESSYARD_RUNTIME_UID="$PRESSYARD_RUNTIME_UID" \
+      PRESSYARD_RUNTIME_GID="$PRESSYARD_RUNTIME_GID" \
+      bash "$FIX_PERMISSIONS_SCRIPT"
+  fi
 }
 
 collect_zip_files() {

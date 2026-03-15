@@ -3,6 +3,8 @@ services:
     image: ${TRAEFIK_IMAGE:-traefik:v3.1}
     restart: unless-stopped
     init: true
+    extra_hosts:
+      - host.docker.internal:host-gateway
     command:
       - --providers.file.directory=/etc/traefik/dynamic
       - --providers.file.watch=true

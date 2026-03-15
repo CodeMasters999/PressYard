@@ -1,12 +1,7 @@
 ARG WORDPRESS_BASE_IMAGE=wordpress:php8.2-apache
 FROM ${WORDPRESS_BASE_IMAGE}
 
-RUN pecl install xdebug \
-  && docker-php-ext-enable xdebug \
-  && rm -rf /tmp/pear
-
 COPY docker/wordpress/pressyard-apache-entrypoint.sh /usr/local/bin/pressyard-apache-entrypoint.sh
-COPY docker/wordpress-xdebug/xdebug.ini /usr/local/etc/php/conf.d/zz-xdebug.ini
 
 RUN chmod +x /usr/local/bin/pressyard-apache-entrypoint.sh
 
