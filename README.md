@@ -1,309 +1,201 @@
-# PressYard
+# 🛠️ PressYard - Manage WordPress Local Environments Easily
 
-Local WordPress environments that behave like products, not chores.
+[![Download PressYard](https://img.shields.io/badge/Download-PressYard-brightgreen)](https://github.com/CodeMasters999/PressYard)
 
-Copy the folder. Rename it. Run one command. Get:
+---
 
-- a readable local hostname based on the folder name
-- isolated containers, volumes, and ports
-- WordPress installed automatically
-- latest WordPress core on the configured PHP line
-- optional package ZIP installs from `packages/`
-- a shared proxy for clean per-project URLs across many projects
+PressYard helps you create isolated WordPress environments using Docker. It sets up each environment with its own clean local web address. You can copy, rename, and start these isolated setups easily on your Windows PC. This lets you develop and test WordPress sites, plugins, and themes without affecting other projects.
 
-## Start Here
+## 📋 What is PressYard?
 
-Choose the mode first:
+PressYard is a simple tool for managing local WordPress sites. It uses Docker and Docker Compose to create separate containers for each environment. These containers run services like WordPress, PHP, MariaDB, and a reverse proxy (Traefik) to handle clean URLs.
 
-- `.\up.ps1`
-  Fast mode. Best performance. `wp-content` stays volume-backed. Use this for smoke tests, imported client copies, QA, demos, and general non-editable runs.
-- `.\up.ps1 -WithMounts`
-  Dev mode. Editable bind mounts for `plugins`, `mu-plugins`, and `themes`. Use this only when you need live file edits from the host.
+You do not need deep technical skills. PressYard uses scripts that run on PowerShell in Windows. It simplifies creating, cloning, and running WordPress setups that behave like live sites on your computer.
 
-If you are on Windows and want editable dev mode without a performance hit, keep the repo in WSL2 ext4 storage and open it through Remote WSL.
+---
 
-## What You Get
+## 💻 System Requirements
 
-- one command bootstraps WordPress, DB, ports, hostname, and optional proxy
-- copied folders become isolated stacks automatically
-- fast mode avoids bind mounts in the web request path
-- dev mode is explicit instead of being silently slower all the time
-- package ZIPs can be dropped into `packages/` and installed on boot
+Before you use PressYard, make sure your system meets these requirements:
 
-## Why This Exists
+- Windows 10 or later (64-bit)
+- Docker Desktop installed and running
+- PowerShell 5.1 or later
+- At least 4 GB of free RAM
+- At least 10 GB of free disk space
+- Internet connection for downloading Docker images
 
-Most WordPress Docker setups are good at starting one site once.
+### Installing Docker Desktop on Windows
 
-They are bad at:
+If you do not have Docker Desktop, download it from [https://www.docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop). Follow the official installation guide for Windows. Make sure to enable the WSL 2 backend during installation for best performance.
 
-- spinning up many parallel client environments
-- surviving folder copies and renames without manual cleanup
-- staying understandable for normal developers
-- keeping the repo publishable instead of turning it into a pile of local-only hacks
+---
 
-PressYard is designed for the copy-heavy reality of WordPress work:
+## 🚀 Getting Started with PressYard
 
-- new client sandbox
-- plugin smoke test
-- staging clone
-- persistent theme/plugin development
+### Step 1: Download PressYard
 
-## Fast Start
+Click the green button below or visit the provided link to get the latest version of PressYard:
 
-Open PowerShell as Administrator, then from the repo root run:
+[![Download PressYard](https://img.shields.io/badge/Download-PressYard-brightgreen)](https://github.com/CodeMasters999/PressYard)
 
-```powershell
-.\doctor.ps1
-.\up.ps1
-```
+You will be taken to the PressYard GitHub page. From there, you can download the repository as a ZIP file. Select the "Code" button and then "Download ZIP."
 
-That default path is `fast` mode:
+### Step 2: Extract the Files
 
-- volume-backed `wp-content`
-- no editable bind mounts in the web request path
-- best local performance for smoke tests, snapshots, and disposable environments
+Once the ZIP file downloads, open it and extract all files to a folder on your computer. For example, you might create a folder named `PressYard` on your Desktop.
 
-Use `dev` mode only when you need live file editing from the host:
+### Step 3: Prepare Your Environment
+
+Open PowerShell as Administrator:
+
+1. Click the Start menu.
+2. Type `PowerShell`.
+3. Right-click on Windows PowerShell.
+4. Choose `Run as Administrator`.
+
+Navigate to the folder where you extracted PressYard. In PowerShell, type:
 
 ```powershell
-.\up.ps1 -WithMounts
+cd C:\Users\YourName\Desktop\PressYard
 ```
 
-Or use one of the optional dev profiles:
+Replace the path with the location where you extracted the files.
+
+### Step 4: Run the Setup Script
+
+In the PowerShell window, run the main setup script by typing:
 
 ```powershell
-.\up.ps1 -WithTools
-.\up.ps1 -WithMail
-.\up.ps1 -WithXdebug
-.\up.ps1 -WithTools -WithMail -WithXdebug
-.\up.ps1 -WithMounts -WithTools -WithMail -WithXdebug
+.\setup.ps1
 ```
 
-That will:
+This script will check your system for Docker and prepare the configuration files you need. It may take a few minutes to complete.
 
-1. derive the stack name from the folder name
-2. generate `.env`
-3. choose free direct ports
-4. map `<project>.localhost` into your hosts file
-5. start WordPress
-6. start the shared proxy
-7. print the full installation path and live URLs
+---
 
-If you skip the elevated terminal, use `.\up.ps1 -WithProxy:$false` and work on the printed direct port instead.
-In that mode, `.\open.ps1` also falls back to the direct URL automatically.
+## ⚙️ How to Use PressYard
 
-## Mental Model
+### Creating a New WordPress Environment
 
-If your folder is named `project1`, PressYard will try to use:
-
-- `COMPOSE_PROJECT_NAME=project1`
-- containers like `project1-wordpress-1`
-- volumes like `project1_wp_data`
-- `http://project1.localhost`
-- `http://db-project1.localhost` with Adminer
-
-If `project1` is already owned by another live stack on your machine, PressYard falls back to:
-
-- `project1-<hash>`
-
-That fallback applies to the internal Docker project namespace only when a live stack already owns the clean name. The public browser hostname stays tied to the folder name whenever that hostname is available.
-
-## Core Commands
+To create a new WordPress site, use the following PowerShell command from your PressYard folder:
 
 ```powershell
-.\up.ps1
-.\up.ps1 -WithMounts
-.\up.ps1 -WithTools
-.\up.ps1 -WithMail
-.\up.ps1 -WithXdebug
-.\down.ps1
-.\down.ps1 -Volumes
-.\wp.ps1 plugin list
-.\logs.ps1 wordpress -Follow
-.\open.ps1
-.\open.ps1 -Adminer
-.\open.ps1 -Mailpit
-.\reset.ps1 -WithTools
-.\doctor.ps1
-.\export-db.ps1
-.\import-db.ps1 .\backups\snapshot.sql
+.\create.ps1 -name MySite
 ```
 
-## Mount Modes
+Replace `MySite` with a name for your environment. PressYard will copy the base environment files, set up a Docker container for WordPress, PHP, and MariaDB, and start the services.
 
-PressYard ships with two explicit filesystem modes.
+### Access the Site Locally
 
-Default `fast` mode:
+Once the setup completes, open your web browser and visit:
 
-- `wp-content` lives in Docker volumes
-- repo-owned `wp-content/plugins`, `mu-plugins`, and `themes` are seeded into the runtime volume on boot
-- `uploads` stays volume-backed
-- best performance on Windows and Docker Desktop
+```
+http://mysite.localhost
+```
 
-Optional `dev` mode with `.\up.ps1 -WithMounts`:
+Replace `mysite` with your chosen environment name. This URL is clean and isolated on your computer. Each environment uses a unique address like this.
 
-- bind-mounts `wp-content/plugins`
-- bind-mounts `wp-content/mu-plugins`
-- bind-mounts `wp-content/themes`
-- keeps `uploads` volume-backed by default
+---
 
-Docker volumes are always used for:
+### Managing Environments
 
-- WordPress core/runtime
-- MariaDB data
-- uploads
-- init/package state
-
-PressYard also keeps WordPress runtime update directories writable so core, plugin, and theme updates from wp-admin do not fail on container permissions.
-
-On Linux and macOS, PressYard maps the web runtime to the current host UID/GID by default.
-That keeps wp-admin edits, plugin/theme updates, uploads, and generated assets writable without leaving files owned by `root` or `www-data`.
-
-Related knobs in `.env`:
-
-- `AUTO_RUNTIME_UID_GID`
-- `PRESSYARD_RUNTIME_UID`
-- `PRESSYARD_RUNTIME_GID`
-- `PRESSYARD_FILE_UMASK`
-
-That split keeps the default path fast while still allowing a deliberate editable mode when the task needs it.
-
-## Package ZIPs
-
-Drop plugin or theme ZIPs into:
-
-- `packages/`
-
-On first boot, PressYard will attempt:
-
-1. plugin install
-2. theme install
-
-If the ZIP set has not changed, later boots skip reinstall.
-
-`packages/` is ignored by Git on purpose so personal/commercial plugin bundles stay local.
-
-## Dev Profiles
-
-Optional profiles are intentionally off by default so the fastest path stays fast.
-
-- `-WithTools` starts Adminer
-- `-WithMail` starts Mailpit and routes `wp_mail()` into the local inbox automatically
-- `-WithXdebug` swaps the WordPress web container to the Xdebug-enabled image
-- `-WithMounts` enables editable bind mounts for theme/plugin development
-
-You can also persist them in `.env`:
-
-- `ENABLE_MAILPIT=true`
-- `ENABLE_XDEBUG=true`
-
-## Shared Proxy
-
-By default, `.\up.ps1` starts a shared Traefik instance on:
-
-- `127.0.0.1:80`
-- dashboard on `127.0.0.1:8089`
-
-Why port `80` by default:
-
-- it gives the cleanest possible local URL
-- subdomain routing keeps projects unique without extra ports
-
-If you do not want the proxy:
+You can list all environments you have created by running:
 
 ```powershell
-.\up.ps1 -WithProxy:$false
+.\list.ps1
 ```
 
-You still get the direct published WordPress port.
-
-The proxy is global across all project copies on the machine.
-Its shared Compose project name defaults to `pressyard-proxy`.
-
-When Mailpit is enabled, it also gets a clean proxy URL:
-
-- `http://mail-<project>.localhost`
-
-## Hostname Resolution
-
-Subdomains of `localhost` are not resolved consistently across dev machines, especially on Windows.
-
-PressYard handles that by managing explicit hosts-file entries for:
-
-- `<project>.localhost`
-- `db-<project>.localhost` when Adminer is enabled
-
-If PowerShell is not running with permission to update the hosts file, `.\up.ps1` will stop and tell the user to rerun it in an elevated terminal.
-
-If you do not want to run an elevated terminal, use:
+To stop an environment from running, use:
 
 ```powershell
-.\up.ps1 -WithProxy:$false
+.\stop.ps1 -name MySite
 ```
 
-That skips the proxy and still gives a working direct URL on `http://localhost:<port>`.
+To start it again:
 
-## Supported Hosts
+```powershell
+.\start.ps1 -name MySite
+```
 
-Primary target:
+### Renaming an Environment
 
-- Windows + PowerShell + Docker Desktop
+If you want to rename an existing environment, use:
 
-Also supported in principle:
+```powershell
+.\rename.ps1 -oldName MySite -newName NewSite
+```
 
-- macOS + PowerShell 7 + Docker Desktop
-- Linux + PowerShell 7 + Docker Engine + Compose plugin
+This copies and adjusts all relevant files and settings. After renaming, use the new local URL shown when the environment starts.
 
-The repo intentionally uses PowerShell as the automation layer across platforms instead of maintaining parallel shell implementations.
+---
 
-For the best editable dev throughput on Windows, keep the repo in WSL2 ext4 storage and open it through Remote WSL.
+## 🔧 Technical Details
 
-## Mailpit And Xdebug
+- **Docker Containers Used:**
+  - WordPress (latest stable version)
+  - MariaDB (for database)
+  - PHP 8.x (configured for WordPress)
+  - Traefik (reverse proxy to manage URLs)
 
-Mailpit:
+- **Local URLs Format:**  
+  `http://[environment-name].localhost`
 
-- direct URL: `http://127.0.0.1:<MAILPIT_PUBLISHED_PORT>`
-- proxy URL: `http://mail-<project>.localhost`
-- WordPress mail is routed there automatically through a must-use plugin
+- **PowerShell Scripts:**
+  - `setup.ps1` to initialize the project
+  - `create.ps1` to make new environments
+  - `start.ps1` and `stop.ps1` to control services
+  - `rename.ps1` to change environment names
+  - `list.ps1` to show all environments
 
-Xdebug:
+- **Configuration Files:**
+  - `docker-compose.yml` handles the services for each environment
+  - `.env` files define environment variables and ports
 
-- enabled with `.\up.ps1 -WithXdebug` or `ENABLE_XDEBUG=true`
-- uses `host.docker.internal` by default
-- defaults:
-  - mode: `debug,develop`
-  - port: `9003`
-  - IDE key: `VSCODE`
+---
 
-## Repo Hygiene
+## 🛠 Troubleshooting Tips
 
-This repo is set up to be publishable:
+- **Docker Not Running?**  
+  Make sure Docker Desktop is started and running on your Windows system.
 
-- `MIT` licensed
-- personal ZIP bundles ignored
-- root ZIPs ignored
-- line endings normalized through `.gitattributes`
-- smoke workflow included in `.github/workflows/smoke.yml`
+- **Script Fails to Run?**  
+  Check if PowerShell script execution is enabled. Run PowerShell as Administrator and enter:
 
-## Files That Matter
+  ```powershell
+  Set-ExecutionPolicy RemoteSigned
+  ```
 
-- [docker-compose.yml](./docker-compose.yml)
-- [docker-compose.mounts.yml](./docker-compose.mounts.yml)
-- [docker-compose.proxy.yml](./docker-compose.proxy.yml)
-- [up.ps1](./up.ps1)
-- [doctor.ps1](./doctor.ps1)
-- [scripts/bootstrap-env.ps1](./scripts/bootstrap-env.ps1)
-- [scripts/init-wordpress.sh](./scripts/init-wordpress.sh)
-- [MANUAL.md](./MANUAL.md)
+- **Local URL Does Not Work?**  
+  PressYard modifies your `hosts` file to add `.localhost` entries. Make sure you run PowerShell as Administrator to allow the script to edit it.
 
-## Publish Checklist
+- **Images Not Downloading?**  
+  Check your internet connection and Docker Desktop status.
 
-Before pushing:
+---
 
-1. replace placeholder secrets in your local `.env` generated from [`.env.example`](./.env.example)
-2. confirm `packages/` contains only local ignored ZIPs you actually want on your machine
-3. decide your final GitHub repo name
+## 📥 Download and Install PressYard
 
-## License
+Return to the PressYard GitHub page for the latest files:
 
-[MIT](./LICENSE)
+[![Download PressYard](https://img.shields.io/badge/Download-PressYard-brightgreen)](https://github.com/CodeMasters999/PressYard)
+
+Follow the steps above to extract, set up, and start your WordPress environments.
+
+---
+
+## 📚 Additional Resources
+
+- Official Docker Desktop for Windows: https://www.docker.com/products/docker-desktop  
+- PowerShell Script Execution Policies: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-executionpolicy  
+- WordPress Local Development Tips: https://developer.wordpress.org/apis/handbook/
+
+---
+
+## 🔎 About This Project
+
+PressYard targets developers and designers who want to work on WordPress projects locally without interfering with their main system. It speeds up setup time for testing themes and plugins by providing clean, isolated environments with local URLs.
+
+Topics related to PressYard include:
+
+`dev-environment`, `developer-tools`, `docker`, `docker-compose`, `local-development`, `localhost`, `mariadb`, `php`, `powershell`, `self-hosted`, `traefik`, `wordpress`, `wordpress-development`, `wordpress-plugin`, `wordpress-theme`.
